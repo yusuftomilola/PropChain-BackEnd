@@ -121,11 +121,12 @@ describe('SensitiveEndpointRateLimitGuard', () => {
       
       ipBlockingService.isIpBlocked.mockResolvedValue(false);
       ipBlockingService.isIpWhitelisted.mockResolvedValue(false);
+      const resetTime = Date.now() + 60000;
       rateLimitingService.checkRateLimit.mockResolvedValue({
         allowed: false,
         info: {
           remaining: 0,
-          resetTime: Date.now() + 60000,
+          resetTime: resetTime,
           limit: 5,
           window: 60000,
         },
@@ -133,7 +134,7 @@ describe('SensitiveEndpointRateLimitGuard', () => {
       reflector.get.mockReturnValue(undefined);
 
       await expect(guard.canActivate(context)).rejects.toThrow(HttpException);
-      await expect(guard.canActivate(context)).rejects.toThrow('Too many requests');
+      await expect(guard.canActivate(context)).rejects.toThrow(/Too many requests/);
     });
 
     it('should block IP when blockOnExceed is enabled and rate limit exceeded', async () => {

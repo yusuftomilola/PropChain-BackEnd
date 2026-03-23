@@ -139,7 +139,7 @@ export class SensitiveEndpointRateLimitGuard implements CanActivate {
   }
 
   private setRateLimitHeaders(response: any, info: any): void {
-    if (response && response.setHeader) {
+    if (response && response.setHeader && info) {
       response.setHeader('X-RateLimit-Limit', info.limit);
       response.setHeader('X-RateLimit-Remaining', info.remaining);
       response.setHeader('X-RateLimit-Reset', Math.floor(info.resetTime / 1000));
