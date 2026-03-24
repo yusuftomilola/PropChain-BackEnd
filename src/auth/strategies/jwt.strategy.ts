@@ -35,6 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       ...safe,
       jti: payload.jti,
+      sid: payload.sid,
       tokenUse: payload.tokenUse ?? JWT_TOKEN_USE.ACCESS,
     };
   }

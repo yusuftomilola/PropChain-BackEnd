@@ -22,6 +22,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
           throw new UnauthorizedException('Token has been revoked');
         }
       }
+
+      if (user?.id && user?.jti && user?.sid) {
+        request.session = await this.authService.validateActiveSession(user.id, user.jti, user.sid, {
+          ip: request.ip || request.socket?.remoteAddress || 'unknown',
+          userAgent: request.headers['user-agent'] || 'unknown',
+        });
+      } else {
+        throw new UnauthorizedException('Invalid session context');
+      }
     }
 
     return result;
