@@ -342,7 +342,7 @@ export class ApiKeyService {
       oldKeyPrefix: apiKey.keyPrefix,
       newKeyPrefix,
       key: newPlainKey,
-      rotatedAt: updatedKey.lastRotatedAt!,
+      rotatedAt: updatedKey.lastRotatedAt ?? new Date(),
     };
   }
 

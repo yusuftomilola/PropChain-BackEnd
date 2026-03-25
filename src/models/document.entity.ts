@@ -1,39 +1,28 @@
-import { Document as PrismaDocument, DocumentType, DocumentStatus } from '@prisma/client';
+// Document type enum
+export type DocumentType =
+  | 'TITLE_DEED'
+  | 'INSPECTION_REPORT'
+  | 'OWNERSHIP_PROOF'
+  | 'TAX_DOCUMENT'
+  | 'INSURANCE'
+  | 'OTHER';
+export type DocumentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
 
-export { DocumentType, DocumentStatus };
-
-export class Document implements PrismaDocument {
+// Document entity type definitions
+export interface Document {
   id: string;
-  name: string;
+  propertyId: string;
+  userId: string;
   type: DocumentType;
   status: DocumentStatus;
   fileUrl: string;
-  fileHash: string | null;
-  mimeType: string | null;
-  fileSize: number | null;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
   description: string | null;
-  propertyId: string | null;
-  transactionId: string | null;
-  uploadedById: string;
-  verifiedAt: Date | null;
-  expiresAt: Date | null;
+  expiryDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type CreateDocumentInput = {
-  name: string;
-  type: DocumentType;
-  status?: DocumentStatus;
-  fileUrl: string;
-  fileHash?: string;
-  mimeType?: string;
-  fileSize?: number;
-  description?: string;
-  propertyId?: string;
-  transactionId?: string;
-  uploadedById: string;
-  expiresAt?: Date;
-};
-
-export type UpdateDocumentInput = Partial<Pick<CreateDocumentInput, 'name' | 'description' | 'status' | 'expiresAt'>>;
+export type PrismaDocument = Document;

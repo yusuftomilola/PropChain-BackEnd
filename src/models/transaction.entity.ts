@@ -1,39 +1,31 @@
-import { Transaction as PrismaTransaction, TransactionStatus, TransactionType } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+// Transaction type enum
+export type TransactionStatus =
+  | 'PENDING'
+  | 'ESCROW_FUNDED'
+  | 'BLOCKCHAIN_SUBMITTED'
+  | 'CONFIRMING'
+  | 'CONFIRMED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'FAILED';
+export type TransactionType = 'PURCHASE' | 'LEASE' | 'TRANSFER';
 
-export { TransactionStatus, TransactionType };
-
-export class Transaction implements PrismaTransaction {
+// Transaction entity type definitions
+export interface Transaction {
   id: string;
-  fromAddress: string;
-  toAddress: string;
-  amount: Decimal;
-  txHash: string | null;
-  status: TransactionStatus;
-  type: TransactionType;
-  propertyId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  propertyId: string;
   buyerId: string;
   sellerId: string;
-  currency: string;
+  amount: number;
+  status: TransactionStatus;
+  type: TransactionType;
   blockchainHash: string | null;
-  blockNumber: number | null;
-  confirmations: number;
   escrowWallet: string | null;
-  gasFee: Decimal | null;
-  platformFee: Decimal | null;
-  disputeReason: string | null;
+  platformFee: number;
+  gasFee: number;
+  confirmations: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export type CreateTransactionInput = {
-  fromAddress: string;
-  toAddress: string;
-  amount: number | Decimal;
-  txHash?: string;
-  status?: TransactionStatus;
-  type: TransactionType;
-  propertyId?: string;
-};
-
-export type UpdateTransactionInput = Partial<Pick<CreateTransactionInput, 'txHash' | 'status'>>;
+export type PrismaTransaction = Transaction;

@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsNumber, IsEnum, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PropertyStatus } from '@prisma/client';
+import { PropertyStatus } from './create-property.dto';
 
 export class PropertySearchDto {
   @ApiPropertyOptional()

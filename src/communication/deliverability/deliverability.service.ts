@@ -764,7 +764,7 @@ export class DeliverabilityService {
   private generateRecommendations(issues: DeliverabilityIssue[]): string[] {
     return issues
       .filter(issue => issue.recommendation)
-      .map(issue => issue.recommendation!)
+      .map(issue => issue.recommendation as string)
       .filter((rec, index, arr) => arr.indexOf(rec) === index); // Remove duplicates
   }
 }

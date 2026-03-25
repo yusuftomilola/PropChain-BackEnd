@@ -156,7 +156,14 @@ export class UserService {
    * const user = await userService.findByEmail('user@example.com');
    * ```
    */
-  async findByEmail(email: string) {
+  async findByEmail(email: string): Promise<{
+    id: string;
+    email: string;
+    password: string | null;
+    role: string;
+    isVerified: boolean;
+    [key: string]: any;
+  } | null> {
     return this.cacheService.wrap(
       `user:email:${email}`,
       () =>

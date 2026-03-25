@@ -317,7 +317,11 @@ export class ThreatDetectionService {
         lastSeen: now,
       });
     } else {
-      const tracker = this.requestTracker.get(clientIp)!;
+      const tracker = this.requestTracker.get(clientIp);
+      if (!tracker) {
+        // This should not happen in the else branch, but handle defensively
+        return;
+      }
       tracker.requests.push(now);
       tracker.endpoints.push(request.url);
       tracker.userAgents.push(request.headers['user-agent'] || '');

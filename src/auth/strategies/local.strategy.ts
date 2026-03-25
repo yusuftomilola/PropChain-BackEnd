@@ -13,13 +13,13 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(email: string, password: string): Promise<any> {
-    const user = await this.userService.findByEmail(email);
+    const user = (await this.userService.findByEmail(email)) as { password: string | null; [key: string]: any } | null;
 
     if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password as string);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');

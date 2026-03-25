@@ -332,7 +332,11 @@ export class EmailService {
     // Sort by priority (lower number = higher priority)
     availableProviders.sort((a, b) => a.priority - b.priority);
 
-    return availableProviders[0] || this.providers.get('smtp')!;
+    const provider = availableProviders[0] ?? this.providers.get('smtp');
+    if (!provider) {
+      throw new Error('No email provider available');
+    }
+    return provider;
   }
 
   /**

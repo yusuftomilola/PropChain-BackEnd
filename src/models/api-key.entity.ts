@@ -1,12 +1,12 @@
-import { ApiKey as PrismaApiKey } from '@prisma/client';
-
-export class ApiKey implements PrismaApiKey {
+// API Key entity type definitions
+export interface ApiKey {
   id: string;
+  userId: string;
   name: string;
-  key: string;
   keyPrefix: string;
+  keyHash: string;
   scopes: string[];
-  requestCount: bigint;
+  expiresAt: Date | null;
   lastUsedAt: Date | null;
   isActive: boolean;
   rateLimit: number | null;
@@ -17,13 +17,4 @@ export class ApiKey implements PrismaApiKey {
   updatedAt: Date;
 }
 
-export type CreateApiKeyInput = {
-  name: string;
-  key: string;
-  keyPrefix: string;
-  scopes: string[];
-  isActive?: boolean;
-  rateLimit?: number;
-};
-
-export type UpdateApiKeyInput = Partial<Pick<CreateApiKeyInput, 'name' | 'scopes' | 'isActive' | 'rateLimit'>>;
+export type PrismaApiKey = ApiKey;

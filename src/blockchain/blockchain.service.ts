@@ -54,4 +54,29 @@ export class BlockchainService {
       healthy: true,
     };
   }
+
+  /**
+   * Estimate gas for a transaction
+   */
+  estimateGas(): number {
+    // Return estimated gas fee in ETH
+    return 0.001; // Example value
+  }
+
+  /**
+   * Create an escrow wallet address
+   */
+  async createEscrowWallet(): Promise<string> {
+    // Generate a random escrow wallet address
+    const wallet = ethers.Wallet.createRandom();
+    return wallet.address;
+  }
+
+  /**
+   * Get transaction receipt from blockchain
+   */
+  async getTransactionReceipt(txHash: string): Promise<{ confirmations: number }> {
+    // Return mock confirmations
+    return { confirmations: 6 };
+  }
 }

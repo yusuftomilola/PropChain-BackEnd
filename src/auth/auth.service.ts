@@ -164,7 +164,7 @@ export class AuthService {
       throw new InvalidCredentialsException();
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password as string);
     if (!isPasswordValid) {
       this.logger.warn('Email validation failed: Invalid password', { email });
       throw new InvalidCredentialsException();
@@ -203,7 +203,7 @@ export class AuthService {
         throw new TokenExpiredException('Invalid refresh token');
       }
 
-      const user = await this.userService.findById(payload.sub);
+      const user = (await this.userService.findById(payload.sub)) as { id: string; email: string; [key: string]: any };
       if (!user) {
         this.logger.warn('Refresh token validation failed: User not found', {
           userId: payload.sub,
@@ -280,7 +280,11 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-    const user = await this.userService.findByEmail(email);
+    const user = (await this.userService.findByEmail(email)) as {
+      id: string;
+      email: string;
+      [key: string]: any;
+    } | null;
     if (!user) {
       this.logger.log('Forgot password request for non-existent user', { email });
       return { message: 'If email exists, a reset link has been sent' };

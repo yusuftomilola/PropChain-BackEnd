@@ -1,61 +1,37 @@
-import { User as PrismaUser, UserRole } from '@prisma/client';
+// User entity type definitions
+// These are local type definitions that match the Prisma schema
 
-export { UserRole };
+export type UserRole = 'USER' | 'ADMIN' | 'AGENT';
 
-export class User implements PrismaUser {
+export interface User {
   id: string;
   email: string;
-  password: string | null;
-
   walletAddress: string | null;
-
-  isVerified: boolean;
-
-  roleId: string | null;
   role: UserRole;
-
+  roleId: string | null;
+  password: string | null;
+  isVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
-
-  // Advanced profile fields
   bio: string | null;
   location: string | null;
   avatarUrl: string | null;
 
   // Preferences and privacy
-  preferences: any | null;
-  privacySettings: any | null;
+  preferences: Record<string, unknown> | null;
+  privacySettings: Record<string, unknown> | null;
   exportRequestedAt: Date | null;
 
   // Relationships
-  followers?: any[];
-  following?: any[];
+  followers?: unknown[];
+  following?: unknown[];
 
   // Activity
-  activities?: any[];
+  activities?: UserActivity[];
 }
 
 /**
  * Input used when creating a user
-// User activity entity
-export class UserActivity {
-  id: string;
-  userId: string;
-  action: string;
-  metadata?: any;
-  createdAt: Date;
-}
-
-// User relationship entity
-export class UserRelationship {
-  id: string;
-  followerId: string;
-  followingId: string;
-  status: string;
-  createdAt: Date;
-  follower?: User;
-  following?: User;
-}
  * Flexible enough for email/password and Web3 users
  */
 export type CreateUserInput = {
@@ -67,3 +43,14 @@ export type CreateUserInput = {
 };
 
 export type UpdateUserInput = Partial<CreateUserInput>;
+
+export type PrismaUser = User;
+
+// User activity entity
+export class UserActivity {
+  id: string;
+  userId: string;
+  action: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+}

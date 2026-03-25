@@ -1,18 +1,11 @@
-import { Permission as PrismaPermission } from '@prisma/client';
-
-export class Permission implements PrismaPermission {
+// Permission entity type definitions
+export interface Permission {
   id: string;
+  name: string;
   resource: string;
   action: string;
-  description: string | null;
+  description: string;
   createdAt: Date;
-  updatedAt: Date;
 }
 
-export type CreatePermissionInput = {
-  resource: string;
-  action: string;
-  description?: string;
-};
-
-export type UpdatePermissionInput = Partial<Pick<CreatePermissionInput, 'description'>>;
+export type PrismaPermission = Permission;

@@ -336,7 +336,7 @@ export class MultiLevelCacheService implements OnModuleInit, OnModuleDestroy {
     if (!this.invalidationPolicies.has(namespace)) {
       this.invalidationPolicies.set(namespace, []);
     }
-    this.invalidationPolicies.get(namespace)!.push(policy);
+    this.invalidationPolicies.get(namespace)?.push(policy);
     this.logger.log(`Registered invalidation policy for namespace: ${namespace}`);
   }
 

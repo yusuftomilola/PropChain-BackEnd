@@ -249,8 +249,10 @@ export class CacheInvalidationService {
       }
 
       // Update rule metadata
-      rule.metadata!.lastExecuted = new Date();
-      rule.metadata!.executionCount++;
+      if (rule.metadata) {
+        rule.metadata.lastExecuted = new Date();
+        rule.metadata.executionCount++;
+      }
 
       // Record event
       this.recordEvent({

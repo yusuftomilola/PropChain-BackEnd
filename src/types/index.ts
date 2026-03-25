@@ -17,8 +17,21 @@ export * from './prisma.types';
 /**
  * Export all service-related type definitions
  * Includes response interfaces, pagination types, and service operation types
+ * Note: Explicitly not re-exporting ValidationResult to avoid conflict with validation.types
  */
-export * from './service.types';
+export {
+  type ServiceResponse,
+  type PaginatedResponse,
+  type ApiResponse,
+  type CreateServiceOptions,
+  type UpdateServiceOptions,
+  type DeleteServiceOptions,
+  type SearchServiceOptions,
+  type ValidationResult as ServiceValidationResult,
+  type ValidationError,
+  type ValidationWarning,
+  type CacheOptions,
+} from './service.types';
 
 /**
  * Export all validation-related type definitions
@@ -31,15 +44,3 @@ export * from './validation.types';
  * Includes authentication types, MFA interfaces, and security event types
  */
 export * from './security.types';
-
-/**
- * Export all API-related type definitions
- * Includes HTTP request/response types, API documentation types, and gateway configurations
- */
-export * from './api.types';
-
-/**
- * Export all type guard utilities
- * Includes runtime type checking functions and assertion utilities
- */
-export * from './guards';

@@ -1,20 +1,11 @@
-import { Role as PrismaRole } from '@prisma/client';
-
-export class Role implements PrismaRole {
+// Role entity type definitions
+export interface Role {
   id: string;
   name: string;
-  description: string | null;
-  level: number;
-  isSystem: boolean;
+  description: string;
+  permissions: string[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type CreateRoleInput = {
-  name: string;
-  description?: string;
-  level?: number;
-  isSystem?: boolean;
-};
-
-export type UpdateRoleInput = Partial<Omit<CreateRoleInput, 'isSystem'>>;
+export type PrismaRole = Role;

@@ -7,11 +7,16 @@ export class TracingService {
   private sdk: NodeSDK;
 
   init() {
-    this.sdk = new NodeSDK({
-      serviceName: 'propchain-backend',
-      instrumentations: [getNodeAutoInstrumentations()],
-    });
+    // Initialize OpenTelemetry with service name and auto-instrumentation
+    try {
+      this.sdk = new NodeSDK({
+        serviceName: 'propchain-backend',
+        instrumentations: [getNodeAutoInstrumentations()],
+      });
 
-    this.sdk.start();
+      this.sdk.start();
+    } catch (error) {
+      console.warn('Failed to initialize OpenTelemetry:', error);
+    }
   }
 }

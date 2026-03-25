@@ -264,7 +264,7 @@ export class IndexStrategyService {
       if (!indexGroups.has(key)) {
         indexGroups.set(key, []);
       }
-      indexGroups.get(key)!.push(index);
+      indexGroups.get(key)?.push(index);
     }
 
     // Find duplicates

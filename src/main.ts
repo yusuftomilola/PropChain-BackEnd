@@ -8,6 +8,7 @@ import { AppModule } from './app.module';
 import { StructuredLoggerService } from './common/logging/logger.service';
 import { ErrorResponseDto } from './common/errors/error.dto';
 import { SecurityHeadersService } from './security/services/security-headers.service';
+import { DEFAULT_API_VERSION } from './common/api-version';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -89,22 +90,31 @@ async function bootstrap() {
     }),
   );
 
-  // API prefix
+  // API prefix with versioning
   const apiPrefix = configService.get('API_PREFIX', 'api');
-  app.setGlobalPrefix(apiPrefix);
+  const useVersioning = configService.get('API_VERSIONING_ENABLED', true);
+
+  if (useVersioning) {
+    // Use versioned API path: /api/v1/...
+    app.setGlobalPrefix(`${apiPrefix}/v${DEFAULT_API_VERSION}`);
+    logger.log(`API versioning enabled: v${DEFAULT_API_VERSION}`);
+  } else {
+    app.setGlobalPrefix(apiPrefix);
+  }
 
   // Swagger documentation
   if (configService.get('SWAGGER_ENABLED', true)) {
     const config = new DocumentBuilder()
       .setTitle('PropChain API')
       .setDescription('Decentralized Real Estate Infrastructure - Backend API')
-      .setVersion('1.0.0')
+      .setVersion(DEFAULT_API_VERSION)
       .addTag('properties')
       .addTag('transactions')
       .addTag('users')
       .addTag('blockchain')
       .addBearerAuth()
       .addApiKey({ type: 'apiKey', name: 'X-API-KEY', in: 'header' }, 'apiKey')
+      .addApiKey({ type: 'apiKey', name: 'Accept-Version', in: 'header' }, 'version')
       .build();
 
     const document = SwaggerModule.createDocument(app, config, {
