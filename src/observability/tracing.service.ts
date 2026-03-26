@@ -4,10 +4,15 @@ import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentation
 import { Resource } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-otlp-grpc';
-import { OTLPLogExporter } from '@opentelemetry/exporter-otlp-grpc';
-import { OTLPMetricExporter } from '@opentelemetry/exporter-otlp-grpc';
 import { SimpleSpanProcessor, BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
+
+declare const process: {
+  env: Record<string, string | undefined>;
+  pid: number;
+  on: (event: string, handler: () => void) => void;
+  exit: (code?: number) => void;
+};
 
 @Injectable()
 export class TracingService {

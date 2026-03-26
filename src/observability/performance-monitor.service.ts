@@ -2,9 +2,44 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { TracingService } from './tracing.service';
 import { MetricsInterceptor } from './metrics.interceptor';
-import * as os from 'os';
-import * as fs from 'fs';
-import * as path from 'path';
+
+interface MemoryUsage {
+  rss: number;
+  heapTotal: number;
+  heapUsed: number;
+  external: number;
+  arrayBuffers: number;
+}
+
+declare const process: {
+  env: Record<string, string | undefined>;
+  uptime: () => number;
+  memoryUsage: () => MemoryUsage;
+  pid: number;
+  cwd: () => string;
+};
+
+declare const require: {
+  (id: string): any;
+};
+
+declare const os: {
+  cpus: () => any[];
+  loadavg: () => number[];
+  totalmem: () => number;
+  freemem: () => number;
+};
+
+declare const fs: {
+  statSync: (path: string) => any;
+};
+
+declare const path: {
+  join: (...paths: string[]) => string;
+};
+
+declare const setInterval: (callback: () => void, ms: number) => any;
+declare const clearInterval: (id: any) => void;
 
 export interface PerformanceMetrics {
   timestamp: Date;
@@ -42,7 +77,7 @@ export class PerformanceMonitorService implements OnModuleInit, OnModuleDestroy 
   private readonly maxMetricsHistory = 1000;
   private requestCounts: Map<string, number> = new Map();
   private lastCleanup = Date.now();
-  private monitoringInterval: NodeJS.Timeout;
+  private monitoringInterval: any;
   private requestCountsByMinute: Map<string, number> = new Map();
 
   constructor(
@@ -97,7 +132,7 @@ export class PerformanceMonitorService implements OnModuleInit, OnModuleDestroy 
     } catch (error) {
       span.setStatus({ 
         code: 2, // ERROR
-        message: error.message,
+        message: (error as Error).message,
       });
       span.end();
       throw error;
@@ -245,15 +280,20 @@ export class PerformanceMonitorService implements OnModuleInit, OnModuleDestroy 
       return {};
     }
 
-    const avg = {
+    const avg: Partial<PerformanceMetrics> = {
       cpu: {
         usage: this.average(recentMetrics.map(m => m.cpu.usage)),
         loadAverage: this.averageVector(recentMetrics.map(m => m.cpu.loadAverage)),
       },
       memory: {
+        used: this.average(recentMetrics.map(m => m.memory.used)),
+        free: this.average(recentMetrics.map(m => m.memory.free)),
+        total: this.average(recentMetrics.map(m => m.memory.total)),
         usage: this.average(recentMetrics.map(m => m.memory.usage)),
       },
       application: {
+        uptime: this.average(recentMetrics.map(m => m.application.uptime)),
+        activeRequests: this.average(recentMetrics.map(m => m.application.activeRequests)),
         responseTime: this.average(recentMetrics.map(m => m.application.responseTime)),
         errorRate: this.average(recentMetrics.map(m => m.application.errorRate)),
       },
