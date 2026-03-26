@@ -1,12 +1,13 @@
-import { Injectable, CanActivate, ExecutionContext, Logger, HttpStatus } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { RateLimitingService } from '../../security/services/rate-limiting.service';
+import { RateLimitingService, UserTier, RateLimitConfig } from '../../security/services/rate-limiting.service';
 
 export interface RateLimitOptions {
   windowMs?: number;
   maxRequests?: number;
   keyPrefix?: string;
   skipIf?: (context: ExecutionContext) => boolean | Promise<boolean>;
+  useUserTier?: boolean; // Enable tiered rate limiting based on user tier
 }
 
 @Injectable()
@@ -30,14 +31,15 @@ export class AdvancedRateLimitGuard implements CanActivate {
         return true;
       }
 
-      // Generate rate limit key
-      const key = this.generateKey(request, context);
+      // Generate rate limit key and get user tier if enabled
+      const { key, userTier } = await this.generateKeyAndTier(request, options);
 
       // Get configuration
-      const config = {
+      const config: RateLimitConfig = {
         windowMs: options.windowMs || 60000, // 1 minute default
         maxRequests: options.maxRequests || 100, // 100 requests default
         keyPrefix: options.keyPrefix || 'api',
+        ...(options.useUserTier && userTier && { tier: userTier }),
       };
 
       // Check rate limit
@@ -47,7 +49,7 @@ export class AdvancedRateLimitGuard implements CanActivate {
       this.setRateLimitHeaders(request.res, info);
 
       if (!allowed) {
-        this.logger.warn(`Rate limit exceeded for key: ${key}`);
+        this.logger.warn(`Rate limit exceeded for key: ${key}, tier: ${userTier}`);
         // You can throw an exception here or return false
         // For now, we'll return false to block the request
         return false;
@@ -61,21 +63,33 @@ export class AdvancedRateLimitGuard implements CanActivate {
     }
   }
 
-  private generateKey(request: any, context: ExecutionContext): string {
+  private async generateKeyAndTier(request: any, options: RateLimitOptions): Promise<{ key: string; userTier: UserTier }> {
+    let userTier = UserTier.FREE;
+    
     // Try to get user ID first
     if (request.user?.id) {
-      return `user:${request.user.id}`;
+      if (options.useUserTier) {
+        userTier = await this.rateLimitingService.getUserTier(request.user.id);
+      }
+      return { key: `user:${request.user.id}`, userTier };
     }
 
     // Try to get API key
     const apiKey = request.headers['x-api-key'] || request.query.apiKey;
     if (apiKey) {
-      return `api:${apiKey}`;
+      if (options.useUserTier) {
+        // For API keys, we might have a different tier lookup mechanism
+        userTier = await this.rateLimitingService.getUserTier(`api:${apiKey}`);
+      }
+      return { key: `api:${apiKey}`, userTier };
     }
 
     // Fall back to IP address
     const ip = this.getClientIp(request);
-    return `ip:${ip}`;
+    if (options.useUserTier) {
+      userTier = await this.rateLimitingService.getUserTier(`ip:${ip}`);
+    }
+    return { key: `ip:${ip}`, userTier };
   }
 
   private getClientIp(request: any): string {
@@ -96,6 +110,11 @@ export class AdvancedRateLimitGuard implements CanActivate {
       response.setHeader('X-RateLimit-Remaining', info.remaining);
       response.setHeader('X-RateLimit-Reset', Math.floor(info.resetTime / 1000));
       response.setHeader('X-RateLimit-Window', info.window);
+      
+      // Add tier information if available
+      if (info.tier) {
+        response.setHeader('X-RateLimit-Tier', info.tier);
+      }
     }
   }
 }
