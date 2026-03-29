@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import type { Job } from 'bull';
 import { RedisService } from '../../common/services/redis.service';
+import { IdempotencyService } from '../../common/services/idempotency.service';
 import { EmailQueueService } from '../email/email.queue';
 
 export type JobQueueName = 'default' | 'priority' | 'batch';
@@ -54,6 +55,7 @@ export class BackgroundJobMonitoringService {
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
     private readonly emailQueueService: EmailQueueService,
+    private readonly idempotencyService: IdempotencyService,
   ) {
     this.retentionSeconds = this.configService.get<number>('JOB_MONITORING_RETENTION_SECONDS', 7 * 24 * 60 * 60);
     this.maxEventHistory = this.configService.get<number>('JOB_MONITORING_MAX_EVENTS', 200);
@@ -209,22 +211,118 @@ export class BackgroundJobMonitoringService {
     await this.saveAlerts(alerts);
   }
 
-  async retryFailedJobs(queueName: JobQueueName | 'all' = 'all'): Promise<{ retried: number }> {
-    if (queueName === 'all') {
-      const [defaultJobs, priorityJobs, batchJobs] = await Promise.all([
-        this.emailQueueService.retryFailedJobs('default'),
-        this.emailQueueService.retryFailedJobs('priority'),
-        this.emailQueueService.retryFailedJobs('batch'),
-      ]);
+  async retryFailedJobs(queueName: JobQueueName | 'all' = 'all'): Promise<{ retried: number; skipped: number }> {
+    // Generate idempotency key for this retry operation
+    const idempotencyKey = this.idempotencyService.generateKey(
+      'retry-failed-jobs',
+      queueName,
+      {
+        timestamp: Date.now(),
+        operation: 'bulk-retry',
+      }
+    );
+
+    // Check if this retry operation was recently executed
+    const idempotencyResult = await this.idempotencyService.checkDuplicate(
+      idempotencyKey,
+      {
+        windowMs: 30 * 1000, // 30 seconds
+        maxDuplicates: 1,
+      },
+      {
+        queueName,
+        operation: 'retry-failed-jobs',
+      }
+    );
+
+    if (idempotencyResult.isDuplicate) {
+      this.logger.warn(`Duplicate retry operation blocked for queue: ${queueName}`, {
+        duplicateCount: idempotencyResult.duplicateCount,
+        remainingWindow: idempotencyResult.remainingWindow,
+      });
 
       return {
-        retried: defaultJobs + priorityJobs + batchJobs,
+        retried: 0,
+        skipped: 0,
       };
     }
 
+    let totalRetried = 0;
+    let totalSkipped = 0;
+
+    if (queueName === 'all') {
+      const [defaultJobs, priorityJobs, batchJobs] = await Promise.all([
+        this.retryQueueWithDuplicateCheck('default'),
+        this.retryQueueWithDuplicateCheck('priority'),
+        this.retryQueueWithDuplicateCheck('batch'),
+      ]);
+
+      totalRetried = defaultJobs.retried + priorityJobs.retried + batchJobs.retried;
+      totalSkipped = defaultJobs.skipped + priorityJobs.skipped + batchJobs.skipped;
+    } else {
+      const result = await this.retryQueueWithDuplicateCheck(queueName);
+      totalRetried = result.retried;
+      totalSkipped = result.skipped;
+    }
+
+    this.logger.log(`Retry operation completed for queue: ${queueName}`, {
+      retried: totalRetried,
+      skipped: totalSkipped,
+      idempotencyKey,
+    });
+
     return {
-      retried: await this.emailQueueService.retryFailedJobs(queueName),
+      retried: totalRetried,
+      skipped: totalSkipped,
     };
+  }
+
+  private async retryQueueWithDuplicateCheck(queueName: JobQueueName): Promise<{ retried: number; skipped: number }> {
+    const failedJobs = await this.emailQueueService.getFailedJobs(queueName, 100);
+    let retried = 0;
+    let skipped = 0;
+
+    for (const job of failedJobs) {
+      // Generate job-specific idempotency key
+      const jobKey = this.idempotencyService.generateKey(
+        'retry-single-job',
+        job.id,
+        {
+          queueName,
+          jobId: job.id,
+          failedReason: job.failedReason,
+        }
+      );
+
+      const jobResult = await this.idempotencyService.checkDuplicate(
+        jobKey,
+        {
+          windowMs: 5 * 60 * 1000, // 5 minutes
+          maxDuplicates: 1,
+        },
+        {
+          queueName,
+          jobId: job.id,
+        }
+      );
+
+      if (jobResult.isDuplicate) {
+        skipped++;
+        this.logger.debug(`Skipping duplicate retry for job: ${job.id} in queue: ${queueName}`);
+        continue;
+      }
+
+      try {
+        await this.emailQueueService.retryFailedJobs(queueName);
+        retried++;
+        this.logger.debug(`Retried job: ${job.id} in queue: ${queueName}`);
+      } catch (error) {
+        this.logger.error(`Failed to retry job: ${job.id} in queue: ${queueName}`, error);
+        skipped++;
+      }
+    }
+
+    return { retried, skipped };
   }
 
   async getFailedJobs(queueName: JobQueueName, limit = 20) {
