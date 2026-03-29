@@ -51,6 +51,7 @@ model User {
   roleChanges          RoleChangeLog[]
   documents            Document[]
   exportJobs           ExportJob[]
+  reports              PropertyReport[]
 
   // Indexes for common query patterns
   @@index([email]) // For searching users by email
@@ -132,6 +133,13 @@ model Property {
 
   latitude   Float?
   longitude  Float?
+
+  rejectionReason   String?        @map("rejection_reason")
+
+  // Relationships
+  reports           PropertyReport[]
+  versions          PropertyVersion[]
+  availabilitySlots AvailabilitySlot[]
 
   // Indexes for geospatial queries and filtering
   @@index([latitude, longitude]) // For location-based queries
@@ -365,6 +373,7 @@ enum UserRole {
   VIEWER
   USER
   VERIFIED_USER
+  MENTOR
 }
 
 enum PropertyStatus {
@@ -723,4 +732,64 @@ enum GdprRequestStatus {
   IN_PROGRESS
   COMPLETED
   FAILED
+}
+
+model PropertyReport {
+  id              String   @id @default(cuid())
+  propertyId      String   @map("property_id")
+  reporterId      String   @map("reporter_id")
+  reason          String
+  details         String?
+  status          ReportStatus @default(PENDING)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reporter        User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([reporterId])
+  @@index([status])
+  @@map("property_reports")
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+model PropertyVersion {
+  id              String   @id @default(cuid())
+  propertyId      String   @map("property_id")
+  versionNumber   Int      @map("version_number")
+  data            Json
+  changedById     String   @map("changed_by_id")
+  changeReason    String?  @map("change_reason")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([versionNumber])
+  @@unique([propertyId, versionNumber])
+  @@map("property_versions")
+}
+
+model AvailabilitySlot {
+  id              String   @id @default(cuid())
+  propertyId      String   @map("property_id")
+  startTime       DateTime @map("start_time")
+  endTime         DateTime @map("end_time")
+  isReserved      Boolean  @default(false) @map("is_reserved")
+  reservedById    String?  @map("reserved_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([startTime, endTime])
+  @@map("availability_slots")
 }

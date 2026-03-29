@@ -358,6 +358,9 @@ export class PropertiesService extends BaseService {
         },
       });
 
+      // After successful update, save the old state as a version
+      await this.savePropertyVersion(id, existingProperty, input.versionReason || 'Update');
+
       await this.invalidatePropertyReadCaches(id);
 
       this.logger.log(`Property updated: ${property.id}`);
@@ -667,6 +670,186 @@ export class PropertiesService extends BaseService {
       invalidations.push(this.cacheService.del(`property:detail:${propertyId}`));
     }
 
+
     await Promise.all(invalidations);
+  }
+
+  // --- Admin Moderation (#261) ---
+
+  async approve(id: string, userId: string) {
+    return this.updateStatus(id, DTOPropertyStatus.AVAILABLE, userId);
+  }
+
+  async reject(id: string, reason: string, userId: string) {
+    try {
+      const property = await (this.prisma as any).property.findUnique({ where: { id } });
+      if (!property) throw new NotFoundException(`Property with ID ${id} not found`);
+
+      const updatedProperty = await (this.prisma as any).property.update({
+        where: { id },
+        data: {
+          status: 'REMOVED',
+          rejectionReason: reason,
+        },
+        include: { owner: true },
+      });
+
+      await this.invalidatePropertyReadCaches(id);
+      this.logger.log(`Property rejected: ${id} by admin ${userId}. Reason: ${reason}`);
+      return updatedProperty;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error(`Failed to reject property ${id}`, error);
+      throw new InvalidInputException(undefined, 'Failed to reject property');
+    }
+  }
+
+  // --- Listing Report System (#262) ---
+
+  async reportProperty(propertyId: string, reporterId: string, data: { reason: string; details?: string }) {
+    try {
+      const property = await (this.prisma as any).property.findUnique({ where: { id: propertyId } });
+      if (!property) throw new NotFoundException(`Property with ID ${propertyId} not found`);
+
+      const report = await (this.prisma as any).propertyReport.create({
+        data: {
+          propertyId,
+          reporterId,
+          reason: data.reason,
+          details: data.details,
+        },
+      });
+
+      this.logger.log(`Property reported: ${propertyId} by user ${reporterId}`);
+      return report;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error('Failed to report property', error);
+      throw new InvalidInputException(undefined, 'Failed to report property');
+    }
+  }
+
+  async getReports(query?: { status?: string; propertyId?: string }) {
+    try {
+      return await (this.prisma as any).propertyReport.findMany({
+        where: {
+          ...(query?.status && { status: query.status }),
+          ...(query?.propertyId && { propertyId: query.propertyId }),
+        },
+        include: {
+          property: { select: { id: true, title: true } },
+          reporter: { select: { id: true, email: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (error) {
+      this.logger.error('Failed to fetch reports', error);
+      throw new InvalidInputException(undefined, 'Failed to fetch reports');
+    }
+  }
+
+  // --- Listing Versioning System (#263) ---
+
+  private async savePropertyVersion(propertyId: string, data: any, reason?: string) {
+    try {
+      const latestVersion = await (this.prisma as any).propertyVersion.findFirst({
+        where: { propertyId },
+        orderBy: { versionNumber: 'desc' },
+      });
+
+      const nextVersionNumber = (latestVersion?.versionNumber || 0) + 1;
+
+      // Extract only data fields to avoid saving relations or metadata
+      const cleanData = JSON.parse(JSON.stringify(data));
+      delete cleanData.id;
+      delete cleanData.owner;
+      delete cleanData.createdAt;
+      delete cleanData.updatedAt;
+
+      await (this.prisma as any).propertyVersion.create({
+        data: {
+          propertyId,
+          versionNumber: nextVersionNumber,
+          data: cleanData,
+          changedById: data.ownerId, // For now assuming owner changed it
+          changeReason: reason,
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Failed to save version for property ${propertyId}`, error);
+      // We don't want to throw here if versioning fails, to allow update to proceed
+    }
+  }
+
+  async getVersions(propertyId: string) {
+    try {
+      return await (this.prisma as any).propertyVersion.findMany({
+        where: { propertyId },
+        orderBy: { versionNumber: 'desc' },
+      });
+    } catch (error) {
+      this.logger.error(`Failed to fetch versions for property ${propertyId}`, error);
+      throw new InvalidInputException(undefined, 'Failed to fetch property versions');
+    }
+  }
+
+  // --- Listing Availability Scheduling (#264) ---
+
+  async createAvailabilitySlots(propertyId: string, slots: { startTime: Date; endTime: Date }[]) {
+    try {
+      const property = await (this.prisma as any).property.findUnique({ where: { id: propertyId } });
+      if (!property) throw new NotFoundException(`Property with ID ${propertyId} not found`);
+
+      const createdSlots = await (this.prisma as any).availabilitySlot.createMany({
+        data: slots.map(slot => ({
+          propertyId,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        })),
+      });
+
+      return createdSlots;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error(`Failed to create availability slots for property ${propertyId}`, error);
+      throw new InvalidInputException(undefined, 'Failed to create availability slots');
+    }
+  }
+
+  async getAvailability(propertyId: string) {
+    try {
+      return await (this.prisma as any).availabilitySlot.findMany({
+        where: {
+          propertyId,
+          startTime: { gte: new Date() },
+        },
+        orderBy: { startTime: 'asc' },
+      });
+    } catch (error) {
+      this.logger.error(`Failed to fetch availability for property ${propertyId}`, error);
+      throw new InvalidInputException(undefined, 'Failed to fetch availability');
+    }
+  }
+
+  async reserveSlot(slotId: string, userId: string) {
+    try {
+      const slot = await (this.prisma as any).availabilitySlot.findUnique({ where: { id: slotId } });
+      if (!slot) throw new NotFoundException(`Slot with ID ${slotId} not found`);
+      if (slot.isReserved) throw new BusinessRuleViolationException('Slot is already reserved');
+
+      const updatedSlot = await (this.prisma as any).availabilitySlot.update({
+        where: { id: slotId },
+        data: {
+          isReserved: true,
+          reservedById: userId,
+        },
+      });
+
+      return updatedSlot;
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BusinessRuleViolationException) throw error;
+      this.logger.error(`Failed to reserve slot ${slotId}`, error);
+      throw new InvalidInputException(undefined, 'Failed to reserve slot');
+    }
   }
 }
