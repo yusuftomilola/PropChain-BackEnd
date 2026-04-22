@@ -35,9 +35,12 @@ import {
 } from './security.utils';
 import { AuthUserPayload } from './types/auth-user.type';
 
+import { UserRole } from '@prisma/client';
+
 type JwtPayload = {
   sub: string;
   email: string;
+  role: UserRole;
   type: 'access' | 'refresh';
   jti: string;
   exp?: number;
@@ -482,6 +485,7 @@ export class AuthService {
     return {
       sub: payload.sub,
       email: payload.email,
+      role: payload.role,
       type: 'access',
       jti: payload.jti,
     };
@@ -515,6 +519,7 @@ export class AuthService {
     return {
       sub: apiKey.userId,
       email: apiKey.user.email,
+      role: apiKey.user.role,
       type: 'api-key',
       apiKeyId: apiKey.id,
     };
@@ -528,6 +533,7 @@ export class AuthService {
       {
         sub: user.id,
         email: user.email,
+        role: user.role,
         type: 'access',
         jti: accessJti,
       },
@@ -539,6 +545,7 @@ export class AuthService {
       {
         sub: user.id,
         email: user.email,
+        role: user.role,
         type: 'refresh',
         jti: refreshJti,
       },

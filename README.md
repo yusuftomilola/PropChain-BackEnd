@@ -8,8 +8,36 @@ A modern, scalable backend API for real estate transactions built with NestJS an
 - **Property Listings** - Create, manage, and search property listings
 - **Transaction Tracking** - Record and track real estate transactions
 - **Document Management** - Store and manage property-related documents
+- **Role-Based Access Control** - USER, AGENT, ADMIN roles with route protection
 - **Clean Architecture** - Modular, testable, and maintainable code structure
 - **CI/CD Ready** - Automated testing and deployment pipeline
+
+## 🔐 Role-Based Access Control (RBAC)
+
+The application implements comprehensive RBAC with three user roles:
+
+### User Roles
+
+- **USER**: Default role for registered users. Can create properties and manage their own data.
+- **AGENT**: Can manage properties and assist with transactions.
+- **ADMIN**: Full system access including user management, property administration, and system configuration.
+
+### Route Protection
+
+Routes are protected using decorators:
+
+```typescript
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
+@Get('admin/users')
+getAllUsers() {
+  // Only admins can access
+}
+```
+
+### Default Role Assignment
+
+New users are automatically assigned the `USER` role upon registration.
 
 ## 📋 Prerequisites
 

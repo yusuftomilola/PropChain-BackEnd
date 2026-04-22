@@ -4,9 +4,10 @@ import { UsersController } from './users.controller';
 import { AvatarUploadController } from './avatar-upload.controller';
 import { AvatarUploadService } from './avatar-upload.service';
 import { PrismaModule } from '../database/prisma.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [UsersController, AvatarUploadController],
   providers: [UsersService, AvatarUploadService],
   exports: [UsersService, AvatarUploadService],
