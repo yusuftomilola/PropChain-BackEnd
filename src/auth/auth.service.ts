@@ -83,9 +83,9 @@ export class AuthService {
     this.bcryptRounds = parseInt(this.configService.get<string>('BCRYPT_ROUNDS') ?? '12', 10);
   }
 
-  private transactionsToActivityItems(transactions: any[], type: string) {
+  private transactionsToActivityItems(transactions: any[], type: 'purchase' | 'sale') {
     return transactions.map((transaction) => ({
-      type: 'transaction' as const,
+      type,
       id: transaction.id,
       title: `${type.charAt(0).toUpperCase() + type.slice(1)} - ${transaction.id}`,
       description: `Amount: ${transaction.amount}, Status: ${transaction.status}`,
