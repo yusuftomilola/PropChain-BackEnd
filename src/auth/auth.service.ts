@@ -86,13 +86,16 @@ export class AuthService {
     this.bcryptRounds = parseInt(this.configService.get<string>('BCRYPT_ROUNDS') ?? '12', 10);
   }
 
+  /**
+   * Helper to map transactions to activity items for dashboard
+   */
   private transactionsToActivityItems(transactions: any[], type: 'purchase' | 'sale') {
-    return transactions.map((transaction) => ({
-      type,
-      id: transaction.id,
-      title: `${type.charAt(0).toUpperCase() + type.slice(1)} - ${transaction.id}`,
-      description: `Amount: ${transaction.amount}, Status: ${transaction.status}`,
-      timestamp: transaction.createdAt,
+    return transactions.map((tx) => ({
+      type: 'transaction' as const,
+      id: tx.id,
+      title: `Property ${type === 'purchase' ? 'Purchased' : 'Sold'}: ${tx.property?.title || 'Unknown'}`,
+      description: `${type === 'purchase' ? 'Bought' : 'Sold'} for $${tx.amount}`,
+      timestamp: tx.createdAt,
     }));
   }
 
@@ -443,15 +446,7 @@ export class AuthService {
     return sanitizeUser(foundUser);
   }
 
-  private transactionsToActivityItems(transactions: any[], type: 'purchase' | 'sale') {
-    return transactions.map((tx) => ({
-      type: 'transaction' as const,
-      id: tx.id,
-      title: `Property ${type === 'purchase' ? 'Purchased' : 'Sold'}: ${tx.property?.title || 'Unknown'}`,
-      description: `${type === 'purchase' ? 'Bought' : 'Sold'} for $${tx.amount}`,
-      timestamp: tx.createdAt,
-    }));
-  }
+  // Only one implementation should exist; duplicate removed.
 
   async getDashboard(user: AuthUserPayload) {
     const foundUser = await this.prisma.user.findUnique({
@@ -898,7 +893,12 @@ export class AuthService {
     };
   }
 
-  private async issueTokenPair(user: User, ipAddress?: string, userAgent?: string) {
+  private async issueTokenPair(
+    user: User,
+    tokenFamily?: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     const accessJti = randomUUID();
     const refreshJti = randomUUID();
     const family = tokenFamily || randomUUID(); // Create new family if not provided
