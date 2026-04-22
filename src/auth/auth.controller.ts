@@ -8,6 +8,8 @@ import {
   LogoutDto,
   RefreshTokenDto,
   RegisterDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
   VerifyTwoFactorDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -116,5 +118,15 @@ export class AuthController {
   @Post('api-keys/:id/revoke')
   revokeApiKey(@CurrentUser() user: AuthUserPayload, @Param('id') id: string) {
     return this.authService.revokeApiKey(user, id);
+  }
+
+  @Post('password-reset/request')
+  requestPasswordReset(@Body() requestPasswordResetDto: RequestPasswordResetDto) {
+    return this.authService.requestPasswordReset(requestPasswordResetDto);
+  }
+
+  @Post('password-reset/reset')
+  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }

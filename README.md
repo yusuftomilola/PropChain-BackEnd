@@ -8,10 +8,75 @@ A modern, scalable backend API for real estate transactions built with NestJS an
 - **Property Listings** - Create, manage, and search property listings
 - **Transaction Tracking** - Record and track real estate transactions
 - **Document Management** - Store and manage property-related documents
+- **Role-Based Access Control** - USER, AGENT, ADMIN roles with route protection
 - **Clean Architecture** - Modular, testable, and maintainable code structure
 - **CI/CD Ready** - Automated testing and deployment pipeline
 
-## 📋 Prerequisites
+## 🔐 Role-Based Access Control (RBAC)
+
+The application implements comprehensive RBAC with three user roles:
+
+### User Roles
+
+- **USER**: Default role for registered users. Can create properties and manage their own data.
+- **AGENT**: Can manage properties and assist with transactions.
+- **ADMIN**: Full system access including user management, property administration, and system configuration.
+
+### Route Protection
+
+Routes are protected using decorators:
+
+```typescript
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
+@Get('admin/users')
+getAllUsers() {
+  // Only admins can access
+}
+```
+
+### Default Role Assignment
+
+New users are automatically assigned the `USER` role upon registration.
+
+## � Password Reset
+
+The application provides secure password reset functionality via email:
+
+### Password Reset Flow
+
+1. **Request Reset**: User submits email address
+2. **Token Generation**: Secure reset token created (expires in 1 hour)
+3. **Email Delivery**: Reset link sent to user's email
+4. **Token Validation**: Token verified on password reset
+5. **Password Update**: New password hashed and stored
+
+### API Endpoints
+
+```bash
+# Request password reset
+POST /auth/password-reset/request
+{
+  "email": "user@example.com"
+}
+
+# Reset password with token
+POST /auth/password-reset/reset
+{
+  "token": "reset-token-here",
+  "newPassword": "NewSecurePassword123!"
+}
+```
+
+### Security Features
+
+- **Token Expiration**: Reset tokens expire after 1 hour
+- **Single Use**: Tokens can only be used once
+- **Password History**: Prevents reuse of recent passwords
+- **Rate Limiting**: Previous tokens invalidated on new request
+- **Blocked User Protection**: No emails sent to blocked accounts
+
+## �📋 Prerequisites
 
 - Node.js >= 18.0.0
 - PostgreSQL >= 14

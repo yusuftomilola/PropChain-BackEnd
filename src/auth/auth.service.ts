@@ -13,12 +13,15 @@ import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../database/prisma.service';
 import { UsersService } from '../users/users.service';
 import { SessionsService } from '../sessions/sessions.service';
+import { EmailService } from '../email/email.service';
 import {
   ChangePasswordDto,
   CreateApiKeyDto,
   LoginDto,
   RefreshTokenDto,
   RegisterDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
   VerifyTwoFactorDto,
 } from './dto/auth.dto';
 import {
@@ -38,9 +41,12 @@ import {
 } from './security.utils';
 import { AuthUserPayload } from './types/auth-user.type';
 
+import { UserRole } from '@prisma/client';
+
 type JwtPayload = {
   sub: string;
   email: string;
+  role: UserRole;
   type: 'access' | 'refresh';
   jti: string;
   exp?: number;
@@ -60,6 +66,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly sessionsService: SessionsService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {
     this.jwtSecret = this.configService.get<string>('JWT_SECRET') ?? 'propchain-access-secret';
     this.jwtRefreshSecret =
@@ -652,6 +659,7 @@ export class AuthService {
     return {
       sub: payload.sub,
       email: payload.email,
+      role: payload.role,
       type: 'access',
       jti: payload.jti,
     };
@@ -685,6 +693,7 @@ export class AuthService {
     return {
       sub: apiKey.userId,
       email: apiKey.user.email,
+      role: apiKey.user.role,
       type: 'api-key',
       apiKeyId: apiKey.id,
     };
@@ -698,6 +707,7 @@ export class AuthService {
       {
         sub: user.id,
         email: user.email,
+        role: user.role,
         type: 'access',
         jti: accessJti,
       },
@@ -709,6 +719,7 @@ export class AuthService {
       {
         sub: user.id,
         email: user.email,
+        role: user.role,
         type: 'refresh',
         jti: refreshJti,
       },
@@ -793,5 +804,123 @@ export class AuthService {
       createdAt: apiKey.createdAt,
       updatedAt: apiKey.updatedAt,
     };
+  }
+
+  async requestPasswordReset(data: RequestPasswordResetDto): Promise<void> {
+    const user = await this.usersService.findByEmail(data.email);
+    if (!user) {
+      // Don't reveal if email exists or not for security
+      return;
+    }
+
+    if (user.isBlocked) {
+      // Don't send reset emails to blocked users
+      return;
+    }
+
+    // Invalidate any existing reset tokens for this user
+    await this.prisma.passwordResetToken.updateMany({
+      where: {
+        userId: user.id,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: {
+        expiresAt: new Date(), // Expire immediately
+      },
+    });
+
+    // Generate new reset token
+    const resetToken = randomToken(32);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        token: resetToken,
+        expiresAt,
+      },
+    });
+
+    // Send reset email
+    await this.emailService.sendPasswordResetEmail(user.email, resetToken);
+  }
+
+  async resetPassword(data: ResetPasswordDto): Promise<void> {
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token: data.token },
+      include: { user: true },
+    });
+
+    if (!resetToken) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    if (resetToken.usedAt) {
+      throw new BadRequestException('Reset token has already been used');
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Reset token has expired');
+    }
+
+    if (resetToken.user.isBlocked) {
+      throw new BadRequestException('Account is blocked');
+    }
+
+    const passwordHistoryLimit = getPasswordHistoryLimit();
+
+    // Check if new password was used recently
+    const recentPasswords = await this.prisma.passwordHistory.findMany({
+      where: { userId: resetToken.userId },
+      orderBy: { createdAt: 'desc' },
+      take: passwordHistoryLimit,
+    });
+
+    for (const historyEntry of recentPasswords) {
+      const isReused = await comparePassword(data.newPassword, historyEntry.passwordHash);
+      if (isReused) {
+        throw new BadRequestException(
+          `Password reuse is not allowed for the last ${passwordHistoryLimit} passwords`,
+        );
+      }
+    }
+
+    const newPasswordHash = await hashPassword(data.newPassword, this.bcryptRounds);
+
+    // Update password and mark token as used in a transaction
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.user.update({
+        where: { id: resetToken.userId },
+        data: { password: newPasswordHash },
+      });
+
+      await tx.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: new Date() },
+      });
+
+      await tx.passwordHistory.create({
+        data: {
+          userId: resetToken.userId,
+          passwordHash: newPasswordHash,
+        },
+      });
+
+      // Clean up old password history entries
+      const historyEntries = await tx.passwordHistory.findMany({
+        where: { userId: resetToken.userId },
+        orderBy: { createdAt: 'desc' },
+        skip: passwordHistoryLimit,
+      });
+
+      if (historyEntries.length > 0) {
+        await tx.passwordHistory.deleteMany({
+          where: {
+            id: { in: historyEntries.map(entry => entry.id) },
+          },
+        });
+      }
+    });
   }
 }
