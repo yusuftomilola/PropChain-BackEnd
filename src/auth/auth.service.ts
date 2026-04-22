@@ -50,6 +50,7 @@ export class AuthService {
   private readonly refreshTokenTtlSeconds: number;
   private readonly jwtSecret: string;
   private readonly jwtRefreshSecret: string;
+  private readonly bcryptRounds: number;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -67,6 +68,7 @@ export class AuthService {
       this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d',
       7 * 24 * 60 * 60,
     );
+    this.bcryptRounds = parseInt(this.configService.get<string>('BCRYPT_ROUNDS') ?? '12', 10);
   }
 
   async register(data: RegisterDto) {
@@ -75,7 +77,7 @@ export class AuthService {
       throw new BadRequestException('A user with that email already exists');
     }
 
-    const passwordHash = await hashPassword(data.password);
+    const passwordHash = await hashPassword(data.password, this.bcryptRounds);
     const user = await this.prisma.user.create({
       data: {
         email: data.email,
@@ -269,7 +271,7 @@ export class AuthService {
       );
     }
 
-    const newPasswordHash = await hashPassword(data.newPassword);
+    const newPasswordHash = await hashPassword(data.newPassword, this.bcryptRounds);
 
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.user.update({

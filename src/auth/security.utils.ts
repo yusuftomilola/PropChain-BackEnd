@@ -15,8 +15,8 @@ export type VerifyTotpOptions = TotpOptions & {
   code: string;
 };
 
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10);
+export async function hashPassword(password: string, rounds: number = 12): Promise<string> {
+  return bcrypt.hash(password, rounds);
 }
 
 export async function comparePassword(password: string, passwordHash: string): Promise<boolean> {

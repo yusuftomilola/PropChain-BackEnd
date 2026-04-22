@@ -29,6 +29,24 @@ cp .env.example .env
 # Set up your database URL in .env file
 ```
 
+## ⚙️ Configuration
+
+The application uses environment variables for configuration. Copy `.env.example` to `.env` and adjust the values as needed.
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | Required |
+| `PORT` | Server port | 3000 |
+| `NODE_ENV` | Environment mode | development |
+| `JWT_SECRET` | JWT signing secret | Required |
+| `JWT_REFRESH_SECRET` | JWT refresh token secret | Required |
+| `JWT_ACCESS_EXPIRES_IN` | Access token expiration | 15m |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiration | 7d |
+| `BCRYPT_ROUNDS` | Password hashing rounds | 12 |
+| `PASSWORD_HISTORY_LIMIT` | Password history limit | 5 |
+
 ## 🗄️ Database Setup
 
 ```bash
