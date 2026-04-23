@@ -24,6 +24,8 @@ export interface ApiKey {
   name: string;
   keyPrefix: string;
   keyHash: string;
+  permissions: string[];
+  usageCount: number;
   lastUsedAt: Date | null;
   expiresAt: Date | null;
   revokedAt: Date | null;
