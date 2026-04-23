@@ -79,12 +79,12 @@ export class UserImportService {
         }
 
         const hashedPassword = await hashPassword(password);
-        
+
         // Generate unique referral code
         let referralCode: string;
         let isUnique = false;
         let attempts = 0;
-        
+
         // Basic unique code generation
         do {
           referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();

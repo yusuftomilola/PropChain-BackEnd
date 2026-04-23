@@ -1,4 +1,13 @@
-import { IsEmail, IsOptional, IsString, MinLength, IsIn, IsObject, IsInt, Min } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+  IsIn,
+  IsObject,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdatePreferencesDto {

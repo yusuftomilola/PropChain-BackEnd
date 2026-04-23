@@ -28,7 +28,9 @@ export class UserImportController {
 
     // Basic file type validation
     const allowedExtensions = ['.csv'];
-    const isCsvExtension = allowedExtensions.some((ext) => file.originalname.toLowerCase().endsWith(ext));
+    const isCsvExtension = allowedExtensions.some((ext) =>
+      file.originalname.toLowerCase().endsWith(ext),
+    );
     const isCsvMime = file.mimetype === 'text/csv' || file.mimetype === 'application/vnd.ms-excel';
 
     if (!isCsvExtension && !isCsvMime) {
