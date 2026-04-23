@@ -10,18 +10,12 @@ export class EmailVerificationController {
   constructor(private readonly emailVerificationService: EmailVerificationService) {}
 
   @Post('change')
-  requestEmailChange(
-    @CurrentUser() user: any,
-    @Body() changeEmailDto: ChangeEmailDto,
-  ) {
+  requestEmailChange(@CurrentUser() user: any, @Body() changeEmailDto: ChangeEmailDto) {
     return this.emailVerificationService.requestEmailChange(user.id, changeEmailDto);
   }
 
   @Post('verify')
-  verifyEmailChange(
-    @CurrentUser() user: any,
-    @Body() verifyEmailDto: VerifyEmailDto,
-  ) {
+  verifyEmailChange(@CurrentUser() user: any, @Body() verifyEmailDto: VerifyEmailDto) {
     return this.emailVerificationService.verifyEmailChange(user.id, verifyEmailDto.token);
   }
 

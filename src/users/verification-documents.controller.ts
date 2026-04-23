@@ -1,6 +1,10 @@
 import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Query } from '@nestjs/common';
 import { VerificationDocumentsService } from './verification-documents.service';
-import { CreateVerificationDocumentDto, ReviewVerificationDocumentDto, UpdateVerificationDocumentDto } from './dto/verification-document.dto';
+import {
+  CreateVerificationDocumentDto,
+  ReviewVerificationDocumentDto,
+  UpdateVerificationDocumentDto,
+} from './dto/verification-document.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -10,10 +14,7 @@ export class VerificationDocumentsController {
   constructor(private readonly verificationService: VerificationDocumentsService) {}
 
   @Post()
-  createDocument(
-    @CurrentUser() user: any,
-    @Body() createDto: CreateVerificationDocumentDto,
-  ) {
+  createDocument(@CurrentUser() user: any, @Body() createDto: CreateVerificationDocumentDto) {
     return this.verificationService.create(user.id, createDto);
   }
 

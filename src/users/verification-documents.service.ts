@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { CreateVerificationDocumentDto, ReviewVerificationDocumentDto, UpdateVerificationDocumentDto } from './dto/verification-document.dto';
+import {
+  CreateVerificationDocumentDto,
+  ReviewVerificationDocumentDto,
+  UpdateVerificationDocumentDto,
+} from './dto/verification-document.dto';
+import { VerificationStatus } from '@prisma/client';
 
 @Injectable()
 export class VerificationDocumentsService {
@@ -93,8 +98,8 @@ export class VerificationDocumentsService {
   // Admin methods
   async findAllForAdmin(page = 1, limit = 20, status?: string) {
     const skip = (page - 1) * limit;
-    
-    const where = status ? { status } : {};
+      
+    const where: any = status ? { status: status as VerificationStatus } : {};
 
     const [documents, total] = await Promise.all([
       this.prisma.verificationDocument.findMany({
