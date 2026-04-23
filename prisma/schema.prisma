@@ -343,6 +343,8 @@ model ActivityLog {
   @@index([createdAt])
   @@index([entityType, entityId])
   @@map("activity_logs")
+}
+
 // Session model for tracking user sessions
 model Session {
   id            String    @id @default(uuid())
