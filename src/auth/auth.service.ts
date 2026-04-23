@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiKey, TokenType, User } from '../types/prisma.types';
+import { User as PrismaUser, ApiKey, TokenType } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import * as jwt from 'jsonwebtoken';
@@ -939,7 +939,7 @@ export class AuthService {
   }
 
   private async issueTokenPair(
-    user: User,
+    user: PrismaUser,
     tokenFamily?: string,
     ipAddress?: string,
     userAgent?: string,
