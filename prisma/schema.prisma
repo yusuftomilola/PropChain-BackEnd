@@ -91,6 +91,7 @@ model User {
   lastTrustScoreUpdate DateTime? @map("last_trust_score_update")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
+  lastActivityAt DateTime? @map("last_activity_at")
   preferredChannel String?  @map("preferred_channel")
   languagePreference String? @map("language_preference")
   timezone String? @map("timezone")
