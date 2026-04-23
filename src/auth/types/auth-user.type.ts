@@ -1,4 +1,4 @@
-import { UserRole } from '../../types/prisma.types';
+import { UserRole } from '@prisma/client';
 
 export type AuthUserPayload = {
   sub: string;

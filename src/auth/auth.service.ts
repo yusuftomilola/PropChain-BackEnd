@@ -850,11 +850,22 @@ export class AuthService {
     }
 
     await this.ensureTokenNotBlacklisted(payload.jti);
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        email: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User no longer exists');
+    }
 
     return {
       sub: payload.sub,
-      email: payload.email,
-      role: payload.role,
+      email: user.email,
+      role: user.role,
       type: 'access',
       jti: payload.jti,
     };
