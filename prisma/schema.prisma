@@ -106,7 +106,8 @@ model User {
   apiKeys       ApiKey[]
   passwordHistory PasswordHistory[]
   blacklistedTokens BlacklistedToken[]
-  verificationDocuments VerificationDocument[]
+  preferences   UserPreferences?
+  activityLogs  ActivityLog[]
   sessions      Session[]
   passwordResetTokens PasswordResetToken[]
   loginHistory  LoginHistory[]
@@ -311,28 +312,47 @@ model Document {
   @@map("documents")
 }
 
-// Verification Document model
-model VerificationDocument {
+// User Preferences model
+model UserPreferences {
+  id              String        @id @default(uuid())
+  userId          String        @unique @map("user_id")
+  language        String        @default("en")
+  currency        String        @default("USD")
+  timezone        String        @default("UTC")
+  emailNotifications Boolean    @default(true) @map("email_notifications")
+  smsNotifications  Boolean     @default(false) @map("sms_notifications")
+  propertyAlerts    Boolean     @default(true) @map("property_alerts")
+  marketUpdates     Boolean     @default(true) @map("market_updates")
+  theme           String        @default("light")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_preferences")
+}
+
+// User Activity Log model
+model ActivityLog {
   id              String            @id @default(uuid())
   userId          String            @map("user_id")
-  documentType    String            @map("document_type") // ID_CARD, PASSPORT, DRIVER_LICENSE, PROOF_OF_ADDRESS, etc.
-  fileName        String            @map("file_name")
-  fileUrl         String            @map("file_url")
-  fileSize        Int               @map("file_size") // in bytes
-  mimeType        String            @map("mime_type")
-  status          VerificationStatus @default(PENDING)
-  adminNotes      String?           @map("admin_notes")
-  reviewedBy      String?           @map("reviewed_by")
-  reviewedAt      DateTime?         @map("reviewed_at")
+  action          String            // LOGIN, LOGOUT, UPDATE_PROFILE, CHANGE_PASSWORD, CHANGE_EMAIL, etc.
+  entityType      String?           @map("entity_type") // USER, PROPERTY, TRANSACTION, DOCUMENT, etc.
+  entityId        String?           @map("entity_id")
+  description     String            @db.Text
+  ipAddress       String?           @map("ip_address")
+  userAgent       String?           @map("user_agent")
+  metadata        Json?             // Additional context data
   createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
 
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([status])
-  @@index([documentType])
-  @@map("verification_documents")
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
 }
 
 // Session model for tracking user sessions
