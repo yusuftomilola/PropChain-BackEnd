@@ -1,4 +1,3 @@
-<<<<<<< feat/personal-data-export
 import {
   Body,
   Controller,
@@ -11,6 +10,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -18,27 +18,20 @@ import { Response } from 'express';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
-import { AuthUserPayload } from '../auth/types/auth-user.type';
-=======
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Query } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto, UpdatePreferencesDto, SearchUsersDto } from './dto/user.dto';
-import { DeactivateAccountDto, ReactivateAccountDto } from './dto/deactivation.dto';
->>>>>>> main
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUserPayload } from '../auth/types/auth-user.type';
 import { UserRole } from '../types/prisma.types';
+import { UsersService } from './users.service';
+import { CreateUserDto, SearchUsersDto, UpdatePreferencesDto, UpdateUserDto } from './dto/user.dto';
+import { DeactivateAccountDto, ReactivateAccountDto } from './dto/deactivation.dto';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-  // Public endpoint for user registration
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post()
@@ -95,7 +88,6 @@ export class UsersController {
     return this.usersService.remove(id);
   }
 
-<<<<<<< feat/personal-data-export
   @UseGuards(JwtAuthGuard)
   @Post(':id/export')
   async exportData(@Param('id') id: string, @CurrentUser() user: AuthUserPayload) {
@@ -105,8 +97,6 @@ export class UsersController {
 
     try {
       const exportData = await this.usersService.exportPersonalData(id);
-
-      // Ensure exports directory exists
       const exportsDir = path.join(process.cwd(), 'exports');
       fs.mkdirSync(exportsDir, { recursive: true });
 
@@ -124,6 +114,7 @@ export class UsersController {
       if (error instanceof Error && error.message === 'User not found') {
         throw new NotFoundException(error.message);
       }
+
       throw new InternalServerErrorException('Failed to generate export');
     }
   }
@@ -148,30 +139,15 @@ export class UsersController {
     }
 
     res.download(filepath, (err) => {
-      if (err) {
-        if (!res.headersSent) {
-          res.status(HttpStatus.INTERNAL_SERVER_ERROR).send({
-            message: 'Error downloading file',
-            error: err.message,
-          });
-        }
+      if (err && !res.headersSent) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).send({
+          message: 'Error downloading file',
+          error: err.message,
+        });
       }
     });
   }
 
-  private extractExportOwnerId(filename: string) {
-    const match =
-      /^export-(.+)-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.json$/i.exec(
-        filename,
-      );
-
-    if (!match) {
-      throw new NotFoundException('Invalid export file');
-    }
-
-    return match[1];
-=======
-  // User self-service deactivation
   @UseGuards(JwtAuthGuard)
   @Post('me/deactivate')
   deactivateAccount(
@@ -181,22 +157,20 @@ export class UsersController {
     return this.usersService.deactivate(user.sub, deactivateDto);
   }
 
-  // User self-service reactivation
   @Post('me/reactivate')
   reactivateAccount(
     @Body() data: { email: string; token?: string },
     @Body() reactivateDto: ReactivateAccountDto,
   ) {
-    // Find user by email first
     return this.usersService.findByEmail(data.email).then((foundUser) => {
       if (!foundUser) {
         throw new Error('User not found');
       }
+
       return this.usersService.reactivate(foundUser.id, reactivateDto);
     });
   }
 
-  // Admin endpoints for deactivation management
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post(':id/verify')
@@ -225,7 +199,6 @@ export class UsersController {
     return this.usersService.reactivate(id, reactivateDto);
   }
 
-  // User self-service preferences update
   @UseGuards(JwtAuthGuard)
   @Put('me/preferences')
   updatePreferences(
@@ -235,7 +208,6 @@ export class UsersController {
     return this.usersService.updatePreferences(user.sub, updatePreferencesDto);
   }
 
-  // Referral system
   @UseGuards(JwtAuthGuard)
   @Get('me/referral-stats')
   getReferralStats(@CurrentUser() user: AuthUserPayload) {
@@ -266,6 +238,18 @@ export class UsersController {
   @Post('delete-scheduled')
   deleteScheduledUsers() {
     return this.usersService.deleteDeactivatedUsers();
->>>>>>> main
+  }
+
+  private extractExportOwnerId(filename: string) {
+    const match =
+      /^export-(.+)-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.json$/i.exec(
+        filename,
+      );
+
+    if (!match) {
+      throw new NotFoundException('Invalid export file');
+    }
+
+    return match[1];
   }
 }

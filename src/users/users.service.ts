@@ -1,30 +1,19 @@
-<<<<<<< feat/personal-data-export
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-=======
-import { Injectable, Logger } from '@nestjs/common';
->>>>>>> main
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { CreateUserDto, UpdateUserDto, UpdatePreferencesDto, SearchUsersDto } from './dto/user.dto';
+import { CreateUserDto, SearchUsersDto, UpdatePreferencesDto, UpdateUserDto } from './dto/user.dto';
 import { DeactivateAccountDto, ReactivateAccountDto } from './dto/deactivation.dto';
 import { hashPassword, sanitizeUser } from '../auth/security.utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
-<<<<<<< feat/personal-data-export
 export class UsersService implements OnModuleInit {
   private readonly logger = new Logger(UsersService.name);
-=======
-export class UsersService {
-  private readonly logger = new Logger(UsersService.name);
 
->>>>>>> main
   constructor(private prisma: PrismaService) {}
 
   onModuleInit() {
-    // Start cleanup interval (every hour)
     setInterval(() => this.cleanupExports(), 60 * 60 * 1000);
-    // Initial cleanup
     this.cleanupExports();
   }
 
@@ -34,7 +23,7 @@ export class UsersService {
 
     const files = fs.readdirSync(exportsDir);
     const now = Date.now();
-    const expirationTime = 24 * 60 * 60 * 1000; // 24 hours
+    const expirationTime = 24 * 60 * 60 * 1000;
 
     files.forEach((file) => {
       const filepath = path.join(exportsDir, file);
@@ -49,13 +38,11 @@ export class UsersService {
   async create(data: CreateUserDto) {
     const passwordHash = await hashPassword(data.password);
 
-    // Generate unique referral code
     let referralCode: string;
     do {
       referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     } while (await this.prisma.user.findUnique({ where: { referralCode } }));
 
-    // Handle referral
     let referredById: string | null = null;
     if (data.referralCode) {
       const referrer = await this.prisma.user.findUnique({
@@ -93,7 +80,7 @@ export class UsersService {
   async findAll() {
     return this.prisma.user.findMany({
       where: {
-        isDeactivated: false, // Hide deactivated users
+        isDeactivated: false,
       },
       select: {
         id: true,
@@ -108,10 +95,10 @@ export class UsersService {
   }
 
   async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({
+    return this.prisma.user.findFirst({
       where: {
         id,
-        isDeactivated: false, // Don't show deactivated users
+        isDeactivated: false,
       },
       select: {
         id: true,
@@ -130,8 +117,6 @@ export class UsersService {
         updatedAt: true,
       },
     });
-
-    return user;
   }
 
   async findByEmail(email: string) {
@@ -225,7 +210,6 @@ export class UsersService {
     });
   }
 
-<<<<<<< feat/personal-data-export
   async exportPersonalData(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -268,7 +252,29 @@ export class UsersService {
           },
         },
       },
-=======
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const safeUser = {
+      ...user,
+      password: undefined,
+      twoFactorSecret: undefined,
+      twoFactorBackupCodes: undefined,
+    };
+
+    return {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        version: '1.0',
+        type: 'PERSONAL_DATA_EXPORT',
+      },
+      data: safeUser,
+    };
+  }
+
   async deactivate(userId: string, data: DeactivateAccountDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -282,9 +288,8 @@ export class UsersService {
       throw new Error('Account is already deactivated');
     }
 
-    // Calculate scheduled deletion date (30 days from now if scheduled)
     const scheduledDeletionAt = data.scheduleDeletion
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       : null;
 
     const updatedUser = await this.prisma.user.update({
@@ -313,34 +318,16 @@ export class UsersService {
   }
 
   async reactivate(userId: string, data: ReactivateAccountDto = {}) {
+    void data;
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
->>>>>>> main
     });
 
     if (!user) {
       throw new Error('User not found');
     }
 
-<<<<<<< feat/personal-data-export
-    // Remove sensitive authentication secrets from the export payload.
-    const safeUser = {
-      ...user,
-      password: undefined,
-      twoFactorSecret: undefined,
-      twoFactorBackupCodes: undefined,
-    };
-
-    return {
-      metadata: {
-        exportDate: new Date().toISOString(),
-        version: '1.0',
-        type: 'PERSONAL_DATA_EXPORT',
-      },
-      data: safeUser,
-    };
-  }
-=======
     if (!user.isDeactivated) {
       throw new Error('Account is not deactivated');
     }
@@ -390,7 +377,7 @@ export class UsersService {
     const { q, email, name, page = 1, limit = 10 } = filters;
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       isDeactivated: false,
     };
 
@@ -474,7 +461,6 @@ export class UsersService {
   async deleteDeactivatedUsers() {
     const now = new Date();
 
-    // Find users ready for deletion
     const usersToDelete = await this.prisma.user.findMany({
       where: {
         isDeactivated: true,
@@ -492,29 +478,24 @@ export class UsersService {
       return { deletedCount: 0 };
     }
 
-    const userIds = usersToDelete.map((u: { id: string; email: string }) => u.id);
+    const userIds = usersToDelete.map((user) => user.id);
 
-    // Delete in transaction to ensure atomicity
-    const result = await this.prisma.$transaction(async (tx: any) => {
-      // Delete related records first (if not using cascade)
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.loginAttempt.deleteMany({
         where: {
           email: {
-            in: usersToDelete.map((u: { id: string; email: string }) => u.email),
+            in: usersToDelete.map((user) => user.email),
           },
         },
       });
 
-      // Delete users
-      const deleteResult = await tx.user.deleteMany({
+      return tx.user.deleteMany({
         where: {
           id: {
             in: userIds,
           },
         },
       });
-
-      return deleteResult;
     });
 
     this.logger.log(`Deleted ${result.count} deactivated users`);
@@ -584,5 +565,4 @@ export class UsersService {
       },
     });
   }
->>>>>>> main
 }
