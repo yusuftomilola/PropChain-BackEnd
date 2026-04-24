@@ -58,6 +58,29 @@ export enum UserRole {
   AGENT = 'AGENT',
 }
 
+export enum PropertyStatus {
+  DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  UNDER_CONTRACT = 'UNDER_CONTRACT',
+  SOLD = 'SOLD',
+  RENTED = 'RENTED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export enum TransactionType {
+  SALE = 'SALE',
+  PURCHASE = 'PURCHASE',
+  TRANSFER = 'TRANSFER',
+}
+
+export enum TransactionStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  FAILED = 'FAILED',
+}
+
 export namespace Prisma {
   export interface PropertyWhereInput extends Record<string, any> {}
   export interface PropertyOrderByWithRelationInput extends Record<string, any> {}
