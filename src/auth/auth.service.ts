@@ -22,6 +22,7 @@ import {
   RegisterDto,
   RequestPasswordResetDto,
   ResetPasswordDto,
+  UpdateApiKeyPermissionsDto,
   VerifyTwoFactorDto,
 } from './dto/auth.dto';
 import {
@@ -792,12 +793,14 @@ export class AuthService {
 
   async createApiKey(user: AuthUserPayload, data: CreateApiKeyDto) {
     const apiKeyValue = this.generateApiKeyValue();
+    const permissions = this.normalizePermissions(data.permissions);
     const record = await this.prisma.apiKey.create({
       data: {
         userId: user.sub,
         name: data.name,
         keyPrefix: apiKeyValue.slice(0, 12),
         keyHash: createSha256(apiKeyValue),
+        permissions,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
       },
     });
@@ -838,6 +841,7 @@ export class AuthService {
 
     return this.createApiKey(user, {
       name: apiKey.name,
+      permissions: apiKey.permissions,
       expiresAt: apiKey.expiresAt?.toISOString(),
     });
   }
@@ -862,6 +866,57 @@ export class AuthService {
     });
 
     return { message: 'API key revoked successfully' };
+  }
+
+  async updateApiKeyPermissions(
+    user: AuthUserPayload,
+    apiKeyId: string,
+    data: UpdateApiKeyPermissionsDto,
+  ) {
+    const apiKey = await this.prisma.apiKey.findFirst({
+      where: {
+        id: apiKeyId,
+        userId: user.sub,
+      },
+    });
+
+    if (!apiKey) {
+      throw new NotFoundException('API key not found');
+    }
+
+    const updated = await this.prisma.apiKey.update({
+      where: { id: apiKey.id },
+      data: {
+        permissions: this.normalizePermissions(data.permissions),
+      },
+    });
+
+    return this.toApiKeyResponse(updated);
+  }
+
+  async getApiKeyUsage(user: AuthUserPayload, apiKeyId: string) {
+    const apiKey = await this.prisma.apiKey.findFirst({
+      where: {
+        id: apiKeyId,
+        userId: user.sub,
+      },
+      select: {
+        id: true,
+        name: true,
+        keyPrefix: true,
+        usageCount: true,
+        lastUsedAt: true,
+        revokedAt: true,
+        expiresAt: true,
+        createdAt: true,
+      },
+    });
+
+    if (!apiKey) {
+      throw new NotFoundException('API key not found');
+    }
+
+    return apiKey;
   }
 
   async validateAccessToken(token: string): Promise<AuthUserPayload> {
@@ -926,6 +981,9 @@ export class AuthService {
       where: { id: apiKey.id },
       data: {
         lastUsedAt: new Date(),
+        usageCount: {
+          increment: 1,
+        },
       },
     });
 
@@ -935,6 +993,7 @@ export class AuthService {
       role: apiKey.user.role as UserRole,
       type: 'api-key',
       apiKeyId: apiKey.id,
+      apiKeyPermissions: apiKey.permissions,
     };
   }
 
@@ -1062,12 +1121,22 @@ export class AuthService {
       id: apiKey.id,
       name: apiKey.name,
       keyPrefix: apiKey.keyPrefix,
+      permissions: apiKey.permissions,
+      usageCount: apiKey.usageCount,
       lastUsedAt: apiKey.lastUsedAt,
       expiresAt: apiKey.expiresAt,
       revokedAt: apiKey.revokedAt,
       createdAt: apiKey.createdAt,
       updatedAt: apiKey.updatedAt,
     };
+  }
+
+  private normalizePermissions(permissions?: string[]) {
+    if (!permissions || permissions.length === 0) {
+      return [];
+    }
+
+    return Array.from(new Set(permissions.map((permission) => permission.trim()).filter(Boolean)));
   }
 
   async requestPasswordReset(data: RequestPasswordResetDto): Promise<void> {
