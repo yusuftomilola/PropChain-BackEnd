@@ -15,7 +15,7 @@ import { ApiDocumentationModule } from './config/api-documentation.module';
 import { CacheModuleConfig } from './cache/cache.module';
 import { AppController } from './app.controller';
 import './common/common.types'; // Load registered enums
-
+import { AdminModule } from './admin/admin.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -41,6 +41,7 @@ import './common/common.types'; // Load registered enums
     SessionsModule,
     TrustScoreModule,
     PropertiesModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })
